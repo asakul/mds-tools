@@ -62,6 +62,17 @@ class BarAggregator:
             self.low = min(low, self.low)
             self.close = close
             self.volume += volume
+            return None
+
+    def get_bar(self):
+        b_open = self.open_
+        b_high = self.high
+        b_low = self.low
+        b_close = self.close
+        b_volume = self.volume
+        b_timestamp = self.timestamp
+
+        return (b_timestamp, b_open, b_high, b_low, b_close, b_volume)
 
 def main():
     parser = argparse.ArgumentParser(description='QHP client')
@@ -91,6 +102,10 @@ def main():
     if args.time_delta:
         timedelta = datetime.timedelta(seconds=int(args.time_delta))
 
+    agg = None
+    if args.rescale:
+        agg = BarAggregator(int(args.rescale))
+
     rq = {
         "ticker" : symbol,
         "from" : start_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -101,15 +116,16 @@ def main():
     s.send_multipart([bytes(json.dumps(rq), "utf-8")])
     parts = s.recv_multipart()
 
+    print(parts[0])
     if parts[0] != b'OK':
        print("Error:", parts[1])
+
 
     line_count = 0
     with open(args.output_file, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['<TICKER>', '<PER>', '<DATE>', '<TIME>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOLUME>'])
         for line in struct.iter_unpack("<qddddQ", parts[1]):
-            line_count += 1
 
             timestamp = int(line[0])
             open_ = float(line[1])
@@ -119,8 +135,22 @@ def main():
             volume = int(line[5])
             dt = datetime.datetime.utcfromtimestamp(timestamp) + timedelta
 
-            writer.writerow([symbol, period, dt.strftime('%Y%m%d'), dt.strftime('%H%M%S'), str(open_), str(high), str(low), str(close), str(volume)])
+            if agg:
+                mbar = agg.push_bar(dt, open_, high, low, close, volume)
+                if mbar is not None:
+                    line_count += 1
+                    writer.writerow([symbol, agg.timeframe, mbar[0].strftime('%Y%m%d'), mbar[0].strftime('%H%M%S'), str(mbar[1]), str(mbar[2]), str(mbar[3]), str(mbar[4]), str(mbar[5])])
+            else:
+                line_count += 1
+                writer.writerow([symbol, period, dt.strftime('%Y%m%d'), dt.strftime('%H%M%S'), str(open_), str(high), str(low), str(close), str(volume)])
 
+
+        if agg:
+            mbar = agg.get_bar()
+            if mbar is not None:
+                line_count += 1
+                writer.writerow([symbol, agg.timeframe, mbar[0].strftime('%Y%m%d'), mbar[0].strftime('%H%M%S'), str(mbar[1]), str(mbar[2]), str(mbar[3]), str(mbar[4]), str(mbar[5])])
+        
 
     print("Written {} lines".format(line_count))
 
