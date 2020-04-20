@@ -53,7 +53,7 @@ def main():
         print('Applying delta:', time_delta)
     line_count = 0
     with open(args.input_file, 'r') as f:
-        reader = csv.reader(f, delimiter=';')
+        reader = csv.reader(f, delimiter=',')
         next(reader)
         for line in reader:
             line_count += 1
