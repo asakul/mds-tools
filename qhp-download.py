@@ -18,6 +18,7 @@ def main():
     parser.add_argument('-y', '--symbol', action='store', dest='symbol', help='Symbol to download', required=True)
     parser.add_argument('-f', '--from', action='store', dest='from_', help='Starting date', required=True)
     parser.add_argument('-t', '--to', action='store', dest='to', help='Ending date', required=True)
+    parser.add_argument('-d', '--time-delta', action='store', dest='time_delta', help='Add given time delta (in seconds)', required=False)
 
     args = parser.parse_args()
 
@@ -32,6 +33,10 @@ def main():
     start_time = datetime.datetime.strptime(args.from_, "%Y%m%d")
     end_time = datetime.datetime.strptime(args.to, "%Y%m%d")
 
+    timedelta = datetime.timedelta()
+    if args.time_delta:
+        timedelta = datetime.timedelta(seconds=int(args.time_delta))
+
     rq = {
         "ticker" : symbol,
         "from" : start_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -42,11 +47,14 @@ def main():
     s.send_multipart([bytes(json.dumps(rq), "utf-8")])
     parts = s.recv_multipart()
 
+    if parts[0] != b'OK':
+       print("Error:", parts[1])
+
     line_count = 0
-    with open(args.output_file, 'w') as f:
+    with open(args.output_file, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['<TICKER>', '<PER>', '<DATE>', '<TIME>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOLUME>'])
-        for line in struct.iter_unpack("<qddddQ", parts[0]):
+        for line in struct.iter_unpack("<qddddQ", parts[1]):
             line_count += 1
 
             timestamp = int(line[0])
@@ -55,7 +63,7 @@ def main():
             low = float(line[3])
             close = float(line[4])
             volume = int(line[5])
-            dt = datetime.datetime.utcfromtimestamp(timestamp)
+            dt = datetime.datetime.utcfromtimestamp(timestamp) + timedelta
 
             writer.writerow([symbol, period, dt.strftime('%Y%m%d'), dt.strftime('%H%M%S'), str(open_), str(high), str(low), str(close), str(volume)])
 
