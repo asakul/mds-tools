@@ -9,6 +9,59 @@ import csv
 import datetime
 import struct
 
+def timeframe_to_seconds(tf):
+    if tf == 'M1':
+        return 60
+    elif tf == 'M5':
+        return 5 * 60
+    elif tf == 'M15':
+        return 15 * 60
+    elif tf == 'H1':
+        return 3600
+    elif tf == 'D':
+        return 86400
+    elif tf == 'W':
+        return 7 * 86400
+    else:
+        raise ValueError('Invalid value')
+
+class BarAggregator:
+    def __init__(self, timeframe):
+        self.open_ = 0
+        self.high = 0
+        self.low = 0
+        self.close = 0
+        self.volume = 0
+        self.timestamp = None
+        self.current_bar_number = None
+        self.timeframe = timeframe
+
+    def push_bar(self, timestamp, open_, high, low, close, volume):
+        bar_number = timestamp.timestamp() // self.timeframe
+        if bar_number != self.current_bar_number:
+            b_open = self.open_
+            b_high = self.high
+            b_low = self.low
+            b_close = self.close
+            b_volume = self.volume
+            b_timestamp = self.timestamp
+
+            self.open_ = open_
+            self.high = high
+            self.low = low
+            self.close = close
+            self.volume = volume
+            self.timestamp = timestamp
+            prev_bar_number = self.current_bar_number
+            self.current_bar_number = bar_number
+
+            if prev_bar_number is not None:
+                return (b_timestamp, b_open, b_high, b_low, b_close, b_volume)
+        else:
+            self.high = max(high, self.high)
+            self.low = min(low, self.low)
+            self.close = close
+            self.volume += volume
 
 def main():
     parser = argparse.ArgumentParser(description='QHP client')
@@ -18,6 +71,7 @@ def main():
     parser.add_argument('-y', '--symbol', action='store', dest='symbol', help='Symbol to download', required=True)
     parser.add_argument('-f', '--from', action='store', dest='from_', help='Starting date', required=True)
     parser.add_argument('-t', '--to', action='store', dest='to', help='Ending date', required=True)
+    parser.add_argument('-r', '--rescale', action='store', dest='rescale', help='Rescale to timeframe')
 
     args = parser.parse_args()
 
