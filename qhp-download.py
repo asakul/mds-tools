@@ -113,43 +113,52 @@ def main():
         "timeframe" : period
     }
 
+    print("Sending request:", rq)
     s.send_multipart([bytes(json.dumps(rq), "utf-8")])
-    parts = s.recv_multipart()
+    print("Awaiting response")
+    resp = s.recv()
 
-    print(parts[0])
-    if parts[0] != b'OK':
-       print("Error:", parts[1])
+    print(resp)
+    if resp != b'OK':
+        errmsg = s.recv_string()
+        print("Error:", errmsg)
 
 
     line_count = 0
     with open(args.output_file, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['<TICKER>', '<PER>', '<DATE>', '<TIME>', '<OPEN>', '<HIGH>', '<LOW>', '<CLOSE>', '<VOLUME>'])
-        for line in struct.iter_unpack("<qddddQ", parts[1]):
 
-            timestamp = int(line[0])
-            open_ = float(line[1])
-            high = float(line[2])
-            low = float(line[3])
-            close = float(line[4])
-            volume = int(line[5])
-            dt = datetime.datetime.utcfromtimestamp(timestamp) + timedelta
+        while True:
+            if s.getsockopt(zmq.RCVMORE) == 0:
+                break
+            rawdata = s.recv()
+            print("Got chunk: {} bytes".format(len(rawdata)))
+            for line in struct.iter_unpack("<qddddQ", rawdata):
+
+                timestamp = int(line[0])
+                open_ = float(line[1])
+                high = float(line[2])
+                low = float(line[3])
+                close = float(line[4])
+                volume = int(line[5])
+                dt = datetime.datetime.utcfromtimestamp(timestamp) + timedelta
+
+                if agg:
+                    mbar = agg.push_bar(dt, open_, high, low, close, volume)
+                    if mbar is not None:
+                        line_count += 1
+                        writer.writerow([symbol, agg.timeframe, mbar[0].strftime('%Y%m%d'), mbar[0].strftime('%H%M%S'), str(mbar[1]), str(mbar[2]), str(mbar[3]), str(mbar[4]), str(mbar[5])])
+                else:
+                    line_count += 1
+                    writer.writerow([symbol, period, dt.strftime('%Y%m%d'), dt.strftime('%H%M%S'), str(open_), str(high), str(low), str(close), str(volume)])
+
 
             if agg:
-                mbar = agg.push_bar(dt, open_, high, low, close, volume)
+                mbar = agg.get_bar()
                 if mbar is not None:
                     line_count += 1
                     writer.writerow([symbol, agg.timeframe, mbar[0].strftime('%Y%m%d'), mbar[0].strftime('%H%M%S'), str(mbar[1]), str(mbar[2]), str(mbar[3]), str(mbar[4]), str(mbar[5])])
-            else:
-                line_count += 1
-                writer.writerow([symbol, period, dt.strftime('%Y%m%d'), dt.strftime('%H%M%S'), str(open_), str(high), str(low), str(close), str(volume)])
-
-
-        if agg:
-            mbar = agg.get_bar()
-            if mbar is not None:
-                line_count += 1
-                writer.writerow([symbol, agg.timeframe, mbar[0].strftime('%Y%m%d'), mbar[0].strftime('%H%M%S'), str(mbar[1]), str(mbar[2]), str(mbar[3]), str(mbar[4]), str(mbar[5])])
         
 
     print("Written {} lines".format(line_count))
