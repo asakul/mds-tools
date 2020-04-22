@@ -49,7 +49,7 @@ def main():
     max_dt = None
     time_delta = datetime.timedelta(hours=0)
     if args.time_delta is not None:
-        time_delta = datetime.timedelta(hours=int(args.time_delta))
+        time_delta = datetime.timedelta(seconds=int(args.time_delta))
         print('Applying delta:', time_delta)
     line_count = 0
     with open(args.input_file, 'r') as f:
