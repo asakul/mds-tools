@@ -44,7 +44,8 @@ class BarAggregator:
             b_low = self.low
             b_close = self.close
             b_volume = self.volume
-            b_timestamp = self.timestamp
+            if self.current_bar_number is not None:
+                b_timestamp = datetime.datetime.fromtimestamp(self.current_bar_number * self.timeframe)
 
             self.open_ = open_
             self.high = high
@@ -70,7 +71,7 @@ class BarAggregator:
         b_low = self.low
         b_close = self.close
         b_volume = self.volume
-        b_timestamp = self.timestamp
+        b_timestamp = datetime.datetime.fromtimestamp(self.timeframe * ( self.timestamp.timestamp() // self.timeframe))
 
         return (b_timestamp, b_open, b_high, b_low, b_close, b_volume)
 
@@ -122,6 +123,7 @@ def main():
     if resp != b'OK':
         errmsg = s.recv_string()
         print("Error:", errmsg)
+        sys.exit(1)
 
 
     line_count = 0
