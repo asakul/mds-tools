@@ -85,12 +85,15 @@ def main():
     parser.add_argument('-t', '--to', action='store', dest='to', help='Ending date', required=True)
     parser.add_argument('-r', '--rescale', action='store', dest='rescale', help='Rescale to timeframe')
     parser.add_argument('-d', '--time-delta', action='store', dest='time_delta', help='Add given time delta (in seconds)', required=False)
+    parser.add_argument('-c', '--replace-ticker', action='store', dest='replace_ticker', help='Resulting symbol')
 
     args = parser.parse_args()
 
     period = args.timeframe
     symbol = args.symbol
     filename = args.output_file
+
+    replace_ticker = args.replace_ticker
 
     ctx = zmq.Context.instance()
     s = ctx.socket(zmq.REQ)
@@ -125,6 +128,8 @@ def main():
         print("Error:", errmsg)
         sys.exit(1)
 
+    if replace_ticker is not None:
+        symbol = replace_ticker
 
     line_count = 0
     with open(args.output_file, 'w', newline='') as f:
