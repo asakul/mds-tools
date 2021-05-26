@@ -126,7 +126,7 @@ def main():
         if not matches:
             print('Invalid ticker id in file')
             return
-        year_code = matches.group(3)[:-1]
+        year_code = matches.group(3)[-1]
         month_code = get_month_code(int(matches.group(2)))
 
         out_ticker = base + month_code + year_code
