@@ -95,7 +95,7 @@ def main():
             minute = int(time[2:4])
             second = int(time[4:6])
 
-            dt = datetime.datetime(year, month, day, hour, minute, second, 0, tz) - time_delta
+            dt = datetime.datetime(year, month, day, hour, minute, second, 0, utc_tz).astimezone(tz) - time_delta
 
             dt = dt.astimezone(utc_tz)
             serialized_bars.write(struct.pack("<qddddQ", int(dt.timestamp()), float(open_), float(high), float(low), float(close), int(volume)))
