@@ -131,6 +131,17 @@ def main():
 
         out_ticker = base + month_code + year_code
 
+    elif out_symbol[0] == '~':
+        base = out_symbol[1:]
+        matches = re.match('^([^-]+)-(\\d+)\\.(\\d+)$', ticker)
+        if not matches:
+            print('Invalid ticker id in file')
+            return
+        year_code = matches.group(3)
+        month_code = matches.group(2)
+
+        out_ticker = base + "-" + month_code + '.' + year_code
+
         print("Resulting ticker: {}".format(out_ticker))
 
     rq = {
