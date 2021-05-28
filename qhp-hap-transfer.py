@@ -9,7 +9,7 @@ import csv
 import datetime
 import struct
 import re
-from pytz import timezone
+import dateutil.tz
 
 def sec_from_period(period):
     if period == "M1":
@@ -190,9 +190,9 @@ def main():
 
     tickers = request_ticker_list(qhp)
 
-    tz = timezone('UTC')
+    tz = dateutil.tz.gettz('UTC')
     if args.timezone is not None:
-        tz = timezone(args.timezone)
+        tz = dateutil.tz.gettz(args.timezone)
 
     timedelta = datetime.timedelta(seconds=0)
     if args.time_delta is not None:

@@ -10,7 +10,7 @@ import datetime
 import struct
 import re
 
-from pytz import timezone
+import dateutil.tz
 
 def sec_from_period(period):
     if period == "M1":
@@ -49,11 +49,11 @@ def main():
 
     period = args.timeframe
 
-    utc_tz = timezone('UTC')
+    utc_tz = dateutil.tz.gettz('UTC')
     if args.timezone is None:
         tz = utc_tz
     else:
-        tz = timezone(args.timezone)
+        tz = dateutil.tz.gettz(args.timezone)
 
     out_symbol = args.hap_symbol
 
@@ -95,7 +95,7 @@ def main():
             minute = int(time[2:4])
             second = int(time[4:6])
 
-            dt = datetime.datetime(year, month, day, hour, minute, second, 0, utc_tz).astimezone(tz) - time_delta
+            dt = datetime.datetime(year, month, day, hour, minute, second, 0, tzinfo=tz) - time_delta
 
             dt = dt.astimezone(utc_tz)
             serialized_bars.write(struct.pack("<qddddQ", int(dt.timestamp()), float(open_), float(high), float(low), float(close), int(volume)))

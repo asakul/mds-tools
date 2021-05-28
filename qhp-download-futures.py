@@ -8,7 +8,7 @@ import json
 import csv
 import datetime
 import struct
-from pytz import timezone
+import dateutil.tz
 
 def timeframe_to_seconds(tf):
     if tf == 'M1':
@@ -177,7 +177,7 @@ def main():
     print("Tickers: {}".format(tickers))
     for ticker in tickers:
         print("Requesting data: {}".format(ticker))
-        bars = get_data(s, ticker, start_time, end_time, period, timezone('UTC'), timedelta)
+        bars = get_data(s, ticker, start_time, end_time, period, dateutil.tz.gettz('UTC'), timedelta)
 
         if len(bars) > 0:
             data[ticker] = { 'bars' : bars }
