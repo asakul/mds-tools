@@ -8,7 +8,7 @@ import json
 import csv
 import datetime
 import struct
-import termcolor
+import re
 from pytz import timezone
 
 def sec_from_period(period):
@@ -147,6 +147,24 @@ def convert_ticker(s, data):
     else:
         return s
 
+def load_blacklist(filename):
+    result = []
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip()
+            if line != "":
+                result.append(re.compile(line))
+
+    return result
+
+def allow_ticker(blacklist, ticker):
+    for rx in blacklist:
+        if rx.match(ticker):
+            return False
+    return True 
+
+
 def main():
     parser = argparse.ArgumentParser(description='QHP-HAP transfer agent')
     parser.add_argument('-q', '--qhp', action='store', dest='qhp', help='QHP endpoint', required=True)
@@ -156,6 +174,7 @@ def main():
     parser.add_argument('-p', '--period', action='store', dest='period', help='Timeframe', required=True)
     parser.add_argument('-d', '--time-delta', action='store', dest='time_delta', help='Add given time delta (in seconds)')
     parser.add_argument('-z', '--timezone', action='store', dest='timezone', help='Timezone')
+    parser.add_argument('-b', '--blacklist-file', action='store', dest='blacklist_file', help='File with blacklisted tickers')
 
     args = parser.parse_args()
 
@@ -178,18 +197,27 @@ def main():
     timedelta = datetime.timedelta(seconds=0)
     if args.time_delta is not None:
         timedelta = datetime.timedelta(seconds=int(args.time_delta))
+
+    blacklist = []
+    if args.blacklist_file is not None:
+        blacklist = load_blacklist(args.blacklist_file)
+            
         
     max_retries = 3
     for ticker in tickers:
         for trynum in range(0, max_retries):
-            print("Requesting ticker from QHP: {}".format(ticker))
-            data = get_data(qhp, ticker, start_time, end_time, args.period, tz, timedelta)
-            if data is not None:
-                if len(data) > 0:
-                    upload_data(hap, data, convert_ticker(ticker, data), args.period)
-                break
+            if allow_ticker(blacklist, ticker):
+                print("Requesting ticker from QHP: {}".format(ticker))
+                data = get_data(qhp, ticker, start_time, end_time, args.period, tz, timedelta)
+                if data is not None:
+                    if len(data) > 0:
+                        upload_data(hap, data, convert_ticker(ticker, data), args.period)
+                    break
+                else:
+                    print("Timeout, retry {} of {}".format(trynum + 1, max_retries))
             else:
-                print("Timeout, retry {} of {}".format(trynum + 1, max_retries))
+                print("Skipping blacklisted ticker: {}".format(ticker))
+                
 
 if __name__ == '__main__':
     main()
